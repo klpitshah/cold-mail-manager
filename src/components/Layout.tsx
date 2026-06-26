@@ -66,8 +66,8 @@ export function Layout({
                   </svg>
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-slate-900">MailTracker</h1>
-                  <p className="text-xs text-slate-500 hidden sm:block">Referral outreach</p>
+                  <h1 className="text-lg font-bold text-slate-900">Cold Email Tracker</h1>
+                  <p className="text-xs text-slate-500 hidden sm:block">Cold email outreach</p>
                 </div>
               </div>
 

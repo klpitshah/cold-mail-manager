@@ -33,9 +33,12 @@ export function TreeContactRow({
 }: TreeContactRowProps) {
   const canFollowUp = contact.status === 'sent' && contact.lastSentAt
   const isStaged = contact.status === 'staged'
+  const rowBg = isStaged
+    ? 'bg-red-50 hover:bg-red-100/80'
+    : 'bg-emerald-50 hover:bg-emerald-100/80'
 
   return (
-    <div className="group flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-slate-50 transition">
+    <div className={`group flex items-center gap-3 py-2.5 px-3 rounded-lg transition ${rowBg}`}>
       {/* Tree connector */}
       <div className="flex items-center shrink-0 w-6">
         <span className="text-slate-400 font-light">├</span>

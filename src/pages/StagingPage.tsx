@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { AppSettings, Contact, ScheduledSend, ScheduledSendType } from '../types'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { SendConfirmDialog } from '../components/SendConfirmDialog'
@@ -81,8 +81,13 @@ export function StagingPage({
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [formSession, setFormSession] = useState(0)
 
   const staged = contacts.filter((c) => c.status === 'staged')
+  const existingCompanies = useMemo(() => {
+    const names = new Set(contacts.map((c) => c.company.trim()).filter(Boolean))
+    return [...names].sort((a, b) => a.localeCompare(b))
+  }, [contacts])
 
   function loadForEdit(contact: Contact) {
     setEditingId(contact.id)
@@ -138,6 +143,7 @@ export function StagingPage({
     setNotes('')
     setInitialTemplateId(defaultInitialTemplateId)
     setEditingId(null)
+    setFormSession((n) => n + 1)
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -261,7 +267,14 @@ export function StagingPage({
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Company *" value={company} onChange={setCompany} placeholder="Google" />
+              <CompanyField
+                key={editingId ?? `create-${formSession}`}
+                label="Company *"
+                value={company}
+                onChange={setCompany}
+                companies={existingCompanies}
+                placeholder="Google"
+              />
               <Field label="Person's name *" value={name} onChange={setName} placeholder="Jane Smith" />
             </div>
             <Field label="Email (from Prospeo)" value={email} onChange={setEmail} placeholder="jane@google.com" type="email" />
@@ -423,6 +436,84 @@ export function StagingPage({
           onConfirm={confirmPendingAction}
           onCancel={() => setPendingAction(null)}
         />
+      )}
+    </div>
+  )
+}
+
+function CompanyField({
+  label,
+  value,
+  onChange,
+  companies,
+  placeholder,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  companies: string[]
+  placeholder?: string
+}) {
+  const valueIsExisting = companies.includes(value)
+  const [isNew, setIsNew] = useState(() => companies.length === 0 || (value !== '' && !valueIsExisting))
+
+  useEffect(() => {
+    if (companies.length === 0) {
+      setIsNew(true)
+      return
+    }
+    if (value && valueIsExisting) setIsNew(false)
+  }, [companies.length, value, valueIsExisting])
+
+  const inputClass =
+    'w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition'
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
+      {companies.length > 0 && !isNew ? (
+        <select
+          value={valueIsExisting ? value : ''}
+          onChange={(e) => {
+            if (e.target.value === '__new__') {
+              setIsNew(true)
+              onChange('')
+              return
+            }
+            onChange(e.target.value)
+          }}
+          className={inputClass}
+        >
+          <option value="">Select company…</option>
+          {companies.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+          <option value="__new__">+ New company</option>
+        </select>
+      ) : (
+        <div className="space-y-2">
+          {companies.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsNew(false)
+                onChange('')
+              }}
+              className="text-xs text-blue-600 hover:text-blue-700"
+            >
+              Pick existing company
+            </button>
+          )}
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className={inputClass}
+          />
+        </div>
       )}
     </div>
   )

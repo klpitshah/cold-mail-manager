@@ -1,4 +1,4 @@
-# Cold Mail Manager
+# Cold Email Tracker
 
 A local-first app for staging cold outreach emails, sending them through Gmail, and tracking follow-ups by company.
 
