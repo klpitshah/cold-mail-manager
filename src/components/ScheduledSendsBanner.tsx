@@ -21,7 +21,7 @@ export function ScheduledSendsBanner({
         <p className="text-sm font-medium text-violet-900">
           {pending.length} scheduled send{pending.length !== 1 ? 's' : ''}
         </p>
-        <p className="text-xs text-violet-700">Sends when this app is open with Gmail connected</p>
+        <p className="text-xs text-violet-700">Keep this app open with Gmail connected</p>
       </div>
       <div className="space-y-2">
         {pending.map((item) => {

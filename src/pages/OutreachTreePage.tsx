@@ -3,14 +3,11 @@ import type { Contact, ScheduledSend, ScheduledSendType } from '../types'
 import type { EmailTemplateOption } from '../utils/templateRender'
 import { CompanyTreeNode } from '../components/CompanyTreeNode'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { SendConfirmDialog } from '../components/SendConfirmDialog'
 import { FollowUpModal } from '../components/FollowUpModal'
+import { InitialSendModal } from '../components/InitialSendModal'
 import type { CompanyGroup } from '../types'
-import { executeContactSend } from '../utils/executeSend'
 
-type PendingAction =
-  | { type: 'send'; contact: Contact; draft: string; sendType: 'initial' }
-  | { type: 'delete'; contact: Contact }
+type PendingAction = { type: 'delete'; contact: Contact }
 
 interface OutreachTreePageProps {
   contacts: Contact[]
@@ -24,6 +21,20 @@ interface OutreachTreePageProps {
   onEdit: (id: string) => void
   onDelete: (id: string) => Promise<void>
   yourName: string
+  mainTemplateOptions: EmailTemplateOption[]
+  defaultInitialTemplateId: string
+  renderMain: (
+    templateId: string,
+    ctx: {
+      name: string
+      company: string
+      linkedinLink: string
+      jobLink: string
+      yourName: string
+      role: string
+    },
+  ) => string
+  onMainTemplateChange: (templateId: string) => void
   followUpOptions: EmailTemplateOption[]
   defaultFollowUpTemplateId: string
   renderFollowUp: (
@@ -48,6 +59,10 @@ export function OutreachTreePage({
   onEdit,
   onDelete,
   yourName,
+  mainTemplateOptions,
+  defaultInitialTemplateId,
+  renderMain,
+  onMainTemplateChange,
   followUpOptions,
   defaultFollowUpTemplateId,
   renderFollowUp,
@@ -55,9 +70,8 @@ export function OutreachTreePage({
   scheduleSend,
   getScheduledForContact,
 }: OutreachTreePageProps) {
-  const [schedulingId, setSchedulingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [sendingId, setSendingId] = useState<string | null>(null)
+  const [sendContact, setSendContact] = useState<Contact | null>(null)
   const [followUpContact, setFollowUpContact] = useState<Contact | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -96,35 +110,17 @@ export function OutreachTreePage({
       .sort((a, b) => a.company.localeCompare(b.company))
   }, [contacts, search])
 
-  async function doSend(id: string) {
-    if (!token) {
-      onGmailRequired()
-      return
-    }
-    const contact = contacts.find((c) => c.id === id)
-    if (!contact?.email) {
-      setError('Add an email address before sending')
-      return
-    }
-    setSendingId(id)
-    setError(null)
-    try {
-      const result = await executeContactSend(token, contact, contact.mailDraft, 'initial')
-      await onRecordSend(id, result, false)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to send email')
-    } finally {
-      setSendingId(null)
-    }
-  }
-
   function requestSend(id: string) {
     const contact = contacts.find((c) => c.id === id)
     if (!contact?.email) {
       setError('Add an email address before sending')
       return
     }
-    setPendingAction({ type: 'send', contact, draft: contact.mailDraft, sendType: 'initial' })
+    if (!token) {
+      onGmailRequired()
+      return
+    }
+    setSendContact(contact)
   }
 
   function requestDelete(id: string) {
@@ -133,38 +129,8 @@ export function OutreachTreePage({
     setPendingAction({ type: 'delete', contact })
   }
 
-  async function confirmSendNow() {
-    if (!pendingAction || pendingAction.type !== 'send') return
-    if (!token) {
-      onGmailRequired()
-      return
-    }
-    await doSend(pendingAction.contact.id)
-    setPendingAction(null)
-  }
-
-  async function confirmSchedule(sendAt: string) {
-    if (!pendingAction || pendingAction.type !== 'send') return
-    setSchedulingId(pendingAction.contact.id)
-    setError(null)
-    try {
-      await scheduleSend({
-        contactId: pendingAction.contact.id,
-        type: pendingAction.sendType,
-        sendAt,
-        draft: pendingAction.draft,
-      })
-      setPendingAction(null)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to schedule send')
-    } finally {
-      setSchedulingId(null)
-    }
-  }
-
   async function confirmPendingAction() {
     if (!pendingAction) return
-    if (pendingAction.type === 'send') return
     setDeletingId(pendingAction.contact.id)
     try {
       await onDelete(pendingAction.contact.id)
@@ -214,7 +180,6 @@ export function OutreachTreePage({
             <CompanyTreeNode
               key={group.company}
               group={group}
-              sendingId={sendingId}
               onSend={requestSend}
               onFollowUp={(id) => {
                 const c = contacts.find((x) => x.id === id)
@@ -228,21 +193,7 @@ export function OutreachTreePage({
         </div>
       )}
 
-      {pendingAction?.type === 'send' && (
-        <SendConfirmDialog
-          title="Send email?"
-          message={`Send outreach email to ${pendingAction.contact.name} at ${pendingAction.contact.email}?`}
-          sendLabel="Send email"
-          scheduleLabel="Schedule email"
-          variant="primary"
-          loading={sendingId === pendingAction.contact.id || schedulingId === pendingAction.contact.id}
-          onSendNow={confirmSendNow}
-          onSchedule={confirmSchedule}
-          onCancel={() => setPendingAction(null)}
-        />
-      )}
-
-      {pendingAction?.type === 'delete' && (
+      {pendingAction && (
         <ConfirmDialog
           title="Delete contact?"
           message={`Remove ${pendingAction.contact.name} at ${pendingAction.contact.company}? This cannot be undone.`}
@@ -251,6 +202,22 @@ export function OutreachTreePage({
           loading={deletingId === pendingAction.contact.id}
           onConfirm={confirmPendingAction}
           onCancel={() => setPendingAction(null)}
+        />
+      )}
+
+      {sendContact && token && (
+        <InitialSendModal
+          contact={sendContact}
+          yourName={yourName}
+          mainTemplateOptions={mainTemplateOptions}
+          defaultInitialTemplateId={defaultInitialTemplateId}
+          renderMain={renderMain}
+          onMainTemplateChange={onMainTemplateChange}
+          scheduleSend={scheduleSend}
+          getScheduledForContact={getScheduledForContact}
+          token={token}
+          onClose={() => setSendContact(null)}
+          onSent={(result) => onRecordSend(sendContact.id, result, false)}
         />
       )}
 

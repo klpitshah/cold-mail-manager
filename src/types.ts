@@ -12,6 +12,7 @@ export interface Contact {
   company: string
   email: string
   role: string
+  linkedinLink: string
   jobLink: string
   mailDraft: string
   initialTemplateId: string

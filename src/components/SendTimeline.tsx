@@ -10,7 +10,7 @@ export function SendTimeline({ contact }: SendTimelineProps) {
   const history = normalizeSendHistory(contact)
 
   if (history.length === 0) {
-    return <span className="text-xs text-slate-500">—</span>
+    return <span className="text-xs text-slate-500">-</span>
   }
 
   return (

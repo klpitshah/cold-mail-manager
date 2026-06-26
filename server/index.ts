@@ -1,9 +1,10 @@
 import express from 'express'
 import cors from 'cors'
 import { randomUUID } from 'node:crypto'
+import { recordContactSend } from './contactActions.js'
 import { readContacts, writeContacts, readSettings, writeSettings } from './store.js'
 import type { Contact } from '../src/types.js'
-import { appendSendHistory, normalizeSendHistory } from '../src/utils/sendHistory.js'
+import { normalizeSendHistory } from '../src/utils/sendHistory.js'
 import {
   isKnownFollowUpTemplateId,
   isKnownMainTemplateId,
@@ -36,6 +37,7 @@ app.post('/api/contacts', (req, res) => {
     company: (data.company ?? '').trim(),
     email: (data.email ?? '').trim(),
     role: (data.role ?? '').trim(),
+    linkedinLink: (data.linkedinLink ?? '').trim(),
     jobLink: (data.jobLink ?? '').trim(),
     mailDraft: (data.mailDraft ?? '').trim(),
     initialTemplateId: resolveMainTemplateId(data.initialTemplateId),
@@ -87,27 +89,12 @@ app.post('/api/contacts/:id/record-send', (req, res) => {
     result: { messageId: string; threadId: string; subject: string }
     isFollowUp: boolean
   }
-  const contacts = readContacts<Contact>()
-  const idx = contacts.findIndex((c) => c.id === req.params.id)
-  if (idx === -1) {
+  const updated = recordContactSend(req.params.id, result, isFollowUp)
+  if (!updated) {
     res.status(404).json({ error: 'Not found' })
     return
   }
-  const c = contacts[idx]
-  const now = new Date().toISOString()
-  const history = normalizeSendHistory(c)
-  contacts[idx] = {
-    ...c,
-    status: 'sent',
-    lastSentAt: now,
-    sendHistory: appendSendHistory(history, now, isFollowUp),
-    followUpCount: isFollowUp ? c.followUpCount + 1 : c.followUpCount,
-    gmailThreadId: result.threadId,
-    gmailMessageId: result.messageId,
-    lastSubject: result.subject,
-  }
-  writeContacts(contacts)
-  res.json(contacts[idx])
+  res.json(updated)
 })
 
 app.delete('/api/contacts/:id', (req, res) => {

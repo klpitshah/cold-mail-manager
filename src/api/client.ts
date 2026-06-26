@@ -21,6 +21,7 @@ export interface StagingInput {
   company: string
   email: string
   role: string
+  linkedinLink: string
   jobLink: string
   mailDraft: string
   initialTemplateId: Contact['initialTemplateId']

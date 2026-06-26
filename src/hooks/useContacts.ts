@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, type StagingInput } from '../api/client'
 import type { Contact, ContactStatus } from '../types'
+import { migrateContactLinks } from '../utils/contactLinks'
 import { normalizeSendHistory } from '../utils/sendHistory'
 
 const LEGACY_STORAGE_KEY = 'mailtracker-contacts'
@@ -11,13 +12,15 @@ interface LegacyContact extends Partial<Contact> {
 
 function migrateContact(raw: LegacyContact): Contact {
   const initialTemplateId = raw.initialTemplateId ?? ''
+  const links = migrateContactLinks(raw)
   const contact: Contact = {
     id: raw.id ?? crypto.randomUUID(),
     name: raw.name ?? '',
     company: raw.company ?? '',
     email: raw.email ?? '',
     role: raw.role ?? '',
-    jobLink: raw.jobLink ?? '',
+    linkedinLink: links.linkedinLink,
+    jobLink: links.jobLink,
     mailDraft: raw.mailDraft ?? '',
     initialTemplateId,
     status: migrateStatus(raw),
@@ -74,7 +77,7 @@ export function useContacts() {
               data = await api.bulkImport(legacy)
               localStorage.removeItem(LEGACY_STORAGE_KEY)
             } catch {
-              // bulk import failed (e.g. race) — use legacy locally
+              // bulk import failed (e.g. race) - use legacy locally
               data = legacy
             }
           }

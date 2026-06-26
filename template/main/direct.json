@@ -1,6 +1,6 @@
 {
   "label": "Direct & brief",
   "description": "Short note focused on the role",
-  "subject": "{{company}} — quick question",
+  "subject": "{{company}} - quick question",
   "body": "Hi {{firstName}},\n\n{{opening}} I noticed you're{{roleNote}} at {{company}} and thought you might be the right person to ask.\n\nWould you be open to a 10-minute chat this week, or pointing me to the right contact?\n\nThanks,\n{{yourName}}"
 }

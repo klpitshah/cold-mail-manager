@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Contact } from '../src/types.js'
+import { migrateContactLinks } from '../src/utils/contactLinks.js'
 import { normalizeSendHistory } from '../src/utils/sendHistory.js'
 import {
   isKnownMainTemplateId,
@@ -61,6 +62,11 @@ export function readContacts<T extends Contact>() {
     if (!contact.initialTemplateId || !isKnownMainTemplateId(contact.initialTemplateId)) {
       migrated = true
       next = { ...next, initialTemplateId: resolveMainTemplateId(contact.initialTemplateId) }
+    }
+    const links = migrateContactLinks(contact)
+    if (links.jobLink !== contact.jobLink || links.linkedinLink !== (contact.linkedinLink ?? '')) {
+      migrated = true
+      next = { ...next, ...links }
     }
     return next
   })

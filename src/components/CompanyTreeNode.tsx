@@ -4,7 +4,6 @@ import { TreeContactRow } from './TreeContactRow'
 
 interface CompanyTreeNodeProps {
   group: CompanyGroup
-  sendingId: string | null
   onSend: (id: string) => void
   onFollowUp: (id: string) => void
   onEdit: (id: string) => void
@@ -14,7 +13,6 @@ interface CompanyTreeNodeProps {
 
 export function CompanyTreeNode({
   group,
-  sendingId,
   onSend,
   onFollowUp,
   onEdit,
@@ -85,7 +83,6 @@ export function CompanyTreeNode({
               contact={contact}
               scheduledInitial={getScheduledForContact(contact.id, 'initial')}
               scheduledFollowUp={getScheduledForContact(contact.id, 'follow-up')}
-              sending={sendingId === contact.id}
               onSend={() => onSend(contact.id)}
               onFollowUp={() => onFollowUp(contact.id)}
               onEdit={() => onEdit(contact.id)}

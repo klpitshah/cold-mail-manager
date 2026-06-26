@@ -3,5 +3,5 @@
   "description": "Polite follow-up if your note got buried",
   "default": true,
   "subject": "{{followUpSubject}}",
-  "body": "Hi {{firstName}},\n\nI wanted to gently follow up on my previous message about connecting regarding opportunities at {{company}}. I completely understand if timing isn't right — just wanted to bump this to the top of your inbox in case it got buried.\n\nI'd still love the chance to chat briefly if you're available. Happy to work around your schedule.\n\nThanks again,\n{{yourName}}"
+  "body": "Hi {{firstName}},\n\nI wanted to gently follow up on my previous message about connecting regarding opportunities at {{company}}. I completely understand if timing isn't right - just wanted to bump this to the top of your inbox in case it got buried.\n\nI'd still love the chance to chat briefly if you're available. Happy to work around your schedule.\n\nThanks again,\n{{yourName}}"
 }

@@ -18,7 +18,14 @@ interface StagingPageProps {
   defaultInitialTemplateId: string
   renderMain: (
     templateId: string,
-    ctx: { name: string; company: string; jobLink: string; yourName: string; role: string },
+    ctx: {
+      name: string
+      company: string
+      linkedinLink: string
+      jobLink: string
+      yourName: string
+      role: string
+    },
   ) => string
   onYourNameChange: (name: string) => void | Promise<void>
   onSettingsChange: (updates: Partial<AppSettings>) => void | Promise<void>
@@ -27,6 +34,7 @@ interface StagingPageProps {
     company: string
     email: string
     role: string
+    linkedinLink: string
     jobLink: string
     mailDraft: string
     initialTemplateId: string
@@ -72,6 +80,7 @@ export function StagingPage({
   const [company, setCompany] = useState('')
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('')
+  const [linkedinLink, setLinkedinLink] = useState('')
   const [jobLink, setJobLink] = useState('')
   const [mailDraft, setMailDraft] = useState('')
   const [notes, setNotes] = useState('')
@@ -95,6 +104,7 @@ export function StagingPage({
     setCompany(contact.company)
     setEmail(contact.email)
     setRole(contact.role)
+    setLinkedinLink(contact.linkedinLink)
     setJobLink(contact.jobLink)
     setMailDraft(contact.mailDraft)
     setInitialTemplateId(contact.initialTemplateId || defaultInitialTemplateId)
@@ -117,7 +127,7 @@ export function StagingPage({
 
   function regenerateDraft(templateId: string = initialTemplateId) {
     if (name && company) {
-      setMailDraft(renderMain(templateId, { name, company, jobLink, yourName, role }))
+      setMailDraft(renderMain(templateId, { name, company, linkedinLink, jobLink, yourName, role }))
     }
   }
 
@@ -125,7 +135,7 @@ export function StagingPage({
     if (!editingId) {
       regenerateDraft()
     }
-  }, [name, company, jobLink, yourName, role, editingId])
+  }, [name, company, linkedinLink, jobLink, yourName, role, editingId])
 
   function handleInitialTemplateChange(templateId: string) {
     setInitialTemplateId(templateId)
@@ -138,6 +148,7 @@ export function StagingPage({
     setCompany('')
     setEmail('')
     setRole('')
+    setLinkedinLink('')
     setJobLink('')
     setMailDraft('')
     setNotes('')
@@ -156,6 +167,7 @@ export function StagingPage({
         company,
         email,
         role,
+        linkedinLink,
         jobLink,
         mailDraft,
         initialTemplateId,
@@ -165,7 +177,7 @@ export function StagingPage({
       return
     }
 
-    await onAdd({ name, company, email, role, jobLink, mailDraft, initialTemplateId, notes })
+    await onAdd({ name, company, email, role, linkedinLink, jobLink, mailDraft, initialTemplateId, notes })
     resetForm()
   }
 
@@ -278,9 +290,20 @@ export function StagingPage({
               <Field label="Person's name *" value={name} onChange={setName} placeholder="Jane Smith" />
             </div>
             <Field label="Email (from Prospeo)" value={email} onChange={setEmail} placeholder="jane@google.com" type="email" />
+            <Field label="Role" value={role} onChange={setRole} placeholder="Recruiter" />
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Role" value={role} onChange={setRole} placeholder="Recruiter" />
-              <Field label="Job link" value={jobLink} onChange={setJobLink} placeholder="https://linkedin.com/jobs/..." />
+              <Field
+                label="LinkedIn link"
+                value={linkedinLink}
+                onChange={setLinkedinLink}
+                placeholder="https://linkedin.com/in/..."
+              />
+              <Field
+                label="Job link"
+                value={jobLink}
+                onChange={setJobLink}
+                placeholder="https://linkedin.com/jobs/..."
+              />
             </div>
 
             <div>
@@ -363,15 +386,29 @@ export function StagingPage({
                         Scheduled · {formatScheduledAt(scheduled.sendAt)}
                       </p>
                     )}
-                    {contact.jobLink && (
-                      <a
-                        href={contact.jobLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-blue-500 hover:text-blue-600 mt-0.5 inline-block"
-                      >
-                        View job ↗
-                      </a>
+                    {(contact.linkedinLink || contact.jobLink) && (
+                      <div className="flex flex-wrap gap-x-3 mt-0.5">
+                        {contact.linkedinLink && (
+                          <a
+                            href={contact.linkedinLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-500 hover:text-blue-600"
+                          >
+                            LinkedIn ↗
+                          </a>
+                        )}
+                        {contact.jobLink && (
+                          <a
+                            href={contact.jobLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-500 hover:text-blue-600"
+                          >
+                            Job ↗
+                          </a>
+                        )}
+                      </div>
                     )}
                   </div>
                   <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">

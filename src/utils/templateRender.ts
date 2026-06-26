@@ -15,6 +15,7 @@ export interface EmailTemplateOption {
 export interface RenderContext {
   name: string
   company: string
+  linkedinLink: string
   jobLink: string
   yourName: string
   role: string
@@ -51,12 +52,13 @@ export function buildTemplateVars(ctx: RenderContext): Record<string, string> {
     : `\n\nI'm exploring opportunities at ${ctx.company} that match my background, and I'd love to learn more about the team.`
   const followUpCount = ctx.followUpCount ?? 1
   const followUpSubject =
-    followUpCount === 1 ? `Following up — ${ctx.company}` : `Re: Following up — ${ctx.company}`
+    followUpCount === 1 ? `Following up - ${ctx.company}` : `Re: Following up - ${ctx.company}`
 
   return {
     firstName,
     name: ctx.name,
     company: ctx.company,
+    linkedinLink: ctx.linkedinLink,
     jobLink: ctx.jobLink,
     yourName: ctx.yourName || '[Your Name]',
     role: ctx.role,
@@ -89,11 +91,11 @@ export function renderMainEmail(
 export function renderFollowUpEmail(
   catalog: TemplateCatalog,
   templateId: string,
-  ctx: Omit<RenderContext, 'jobLink' | 'role'> & { followUpCount: number },
+  ctx: Omit<RenderContext, 'jobLink' | 'linkedinLink' | 'role'> & { followUpCount: number },
 ): string {
   const template = catalog.followUp[templateId] ?? catalog.followUp[catalog.defaults.followUp]
   if (!template) return ''
-  return renderTemplate(template, { ...ctx, jobLink: '', role: '' })
+  return renderTemplate(template, { ...ctx, jobLink: '', linkedinLink: '', role: '' })
 }
 
 export function toTemplateOptions(templates: Record<string, EmailTemplateFile>): EmailTemplateOption[] {

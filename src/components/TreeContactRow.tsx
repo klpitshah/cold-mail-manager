@@ -11,7 +11,6 @@ interface TreeContactRowProps {
   onFollowUp: () => void
   onEdit: () => void
   onDelete: () => void
-  sending: boolean
 }
 
 const statusDot: Record<Contact['status'], string> = {
@@ -29,7 +28,6 @@ export function TreeContactRow({
   onFollowUp,
   onEdit,
   onDelete,
-  sending,
 }: TreeContactRowProps) {
   const canFollowUp = contact.status === 'sent' && contact.lastSentAt
   const isStaged = contact.status === 'staged'
@@ -59,6 +57,17 @@ export function TreeContactRow({
           {contact.email && (
             <span className="text-xs text-slate-500 truncate">{contact.email}</span>
           )}
+          {contact.linkedinLink && (
+            <a
+              href={contact.linkedinLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs text-blue-600 hover:text-blue-700 shrink-0"
+            >
+              LinkedIn ↗
+            </a>
+          )}
           {contact.jobLink && (
             <a
               href={contact.jobLink}
@@ -67,7 +76,7 @@ export function TreeContactRow({
               onClick={(e) => e.stopPropagation()}
               className="text-xs text-blue-600 hover:text-blue-700 shrink-0"
             >
-              job ↗
+              Job ↗
             </a>
           )}
         </div>
@@ -98,10 +107,10 @@ export function TreeContactRow({
         {isStaged && (
           <button
             onClick={onSend}
-            disabled={sending || !contact.email}
-            className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 transition"
+            disabled={!contact.email}
+            className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 transition whitespace-nowrap"
           >
-            {sending ? '…' : 'Send'}
+            Review & send
           </button>
         )}
         {canFollowUp && (

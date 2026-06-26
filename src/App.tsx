@@ -74,7 +74,7 @@ export default function App() {
     }
 
     run()
-    const interval = window.setInterval(run, 15000)
+    const interval = window.setInterval(run, 15_000)
     return () => window.clearInterval(interval)
   }, [gmail.token, contacts, processDueSends, recordSend])
 
@@ -145,6 +145,12 @@ export default function App() {
           onEdit={handleEdit}
           onDelete={deleteContact}
           yourName={yourName}
+          mainTemplateOptions={mainOptions}
+          defaultInitialTemplateId={effectiveMainTemplateId}
+          renderMain={renderMain}
+          onMainTemplateChange={(templateId) =>
+            updateSettings({ defaultInitialTemplate: templateId })
+          }
           followUpOptions={followUpOptions}
           defaultFollowUpTemplateId={effectiveFollowUpTemplateId}
           renderFollowUp={renderFollowUp}

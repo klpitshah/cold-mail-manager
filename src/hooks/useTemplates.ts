@@ -39,7 +39,14 @@ export function useTemplates() {
   const renderMain = useCallback(
     (
       templateId: string,
-      ctx: { name: string; company: string; jobLink: string; yourName: string; role: string },
+      ctx: {
+        name: string
+        company: string
+        linkedinLink: string
+        jobLink: string
+        yourName: string
+        role: string
+      },
     ) => renderMainEmail(catalog, templateId, ctx),
     [catalog],
   )

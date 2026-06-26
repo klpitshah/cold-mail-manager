@@ -4,11 +4,11 @@ A local-first app for staging cold outreach emails, sending them through Gmail, 
 
 ## Features
 
-- **Staging** — Add contacts with company, role, job link, and notes. Email drafts are generated automatically from a template.
-- **Outreach** — Browse contacts grouped by company in a tree view. Search, send, edit, and delete from one place.
-- **Gmail integration** — Send initial emails and threaded follow-ups via the Gmail API (OAuth in the browser).
-- **Status tracking** — Track staged vs sent contacts, last send date, and follow-up count.
-- **Local persistence** — Contacts and settings are stored as JSON files on disk via a small Express API.
+- **Staging** - Add contacts with company, role, job link, and notes. Email drafts are generated automatically from a template.
+- **Outreach** - Browse contacts grouped by company in a tree view. Search, send, edit, and delete from one place.
+- **Gmail integration** - Send initial emails and threaded follow-ups via the Gmail API (OAuth in the browser).
+- **Status tracking** - Track staged vs sent contacts, last send date, and follow-up count.
+- **Local persistence** - Contacts and settings are stored as JSON files on disk via a small Express API.
 
 ## Tech stack
 
@@ -40,6 +40,7 @@ A local-first app for staging cold outreach emails, sending them through Gmail, 
 
    - Enable the **Gmail API** for your project
    - Create an OAuth 2.0 **Web application** client
+   - Copy the client ID into `VITE_GOOGLE_CLIENT_ID`
    - Add `http://localhost:5173` to **Authorized JavaScript origins**
    - Add your Google account under **Test users** (while the app is in testing mode)
 
@@ -68,8 +69,8 @@ A local-first app for staging cold outreach emails, sending them through Gmail, 
 
 Contact and settings data lives in `data/` (gitignored):
 
-- `data/contacts.json` — all contacts and send history
-- `data/settings.json` — your display name for email signatures
+- `data/contacts.json` - all contacts and send history
+- `data/settings.json` - your display name for email signatures
 
 The server creates these files automatically on first run. Back up `data/` if you want to preserve your outreach list.
 
@@ -84,5 +85,5 @@ The server creates these files automatically on first run. Back up `data/` if yo
 
 ## Notes
 
-- Gmail access tokens are stored in browser `localStorage`, not on the server.
+- Gmail access tokens are stored in browser `localStorage`. Scheduled sends run in the browser — keep the app open with Gmail connected when a send is due.
 - If you previously used an older localStorage-only version, contacts migrate automatically on first load when `data/contacts.json` is empty.

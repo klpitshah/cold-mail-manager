@@ -2,6 +2,6 @@
   "label": "Referral ask",
   "description": "Friendly ask for a chat or referral",
   "default": true,
-  "subject": "Quick connect — {{company}} referral",
-  "body": "Hi {{firstName}},\n\nI hope this message finds you well. I came across your profile and noticed you're at {{company}}.{{jobNote}}\n\nIf you're open to it, I'd really appreciate a brief chat or a referral if you feel my background is a good fit.\n\nThank you for your time — I know inboxes are busy, so no pressure at all.\n\nBest regards,\n{{yourName}}"
+  "subject": "Quick connect - {{company}} referral",
+  "body": "Hi {{firstName}},\n\nI hope this message finds you well. I came across your profile and noticed you're at {{company}}.{{jobNote}}\n\nIf you're open to it, I'd really appreciate a brief chat or a referral if you feel my background is a good fit.\n\nThank you for your time. I know inboxes are busy, so no pressure at all.\n\nBest regards,\n{{yourName}}"
 }
