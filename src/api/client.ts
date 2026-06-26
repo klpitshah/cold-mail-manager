@@ -1,4 +1,5 @@
-import type { Contact } from '../types'
+import type { Contact, AppSettings, ScheduledSend, ScheduledSendType } from '../types'
+import type { EmailTemplateOption, TemplateCatalog } from '../utils/templateRender'
 
 const BASE = '/api'
 
@@ -22,6 +23,7 @@ export interface StagingInput {
   role: string
   jobLink: string
   mailDraft: string
+  initialTemplateId: Contact['initialTemplateId']
   notes: string
 }
 
@@ -49,11 +51,35 @@ export const api = {
 
   deleteContact: (id: string) => request<void>(`/contacts/${id}`, { method: 'DELETE' }),
 
-  getSettings: () => request<{ yourName: string }>('/settings'),
+  getScheduledSends: () => request<ScheduledSend[]>('/scheduled-sends'),
 
-  updateSettings: (yourName: string) =>
-    request<{ yourName: string }>('/settings', {
+  createScheduledSend: (data: {
+    contactId: string
+    type: ScheduledSendType
+    sendAt: string
+    draft: string
+  }) =>
+    request<ScheduledSend>('/scheduled-sends', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteScheduledSend: (id: string) =>
+    request<void>(`/scheduled-sends/${id}`, { method: 'DELETE' }),
+
+  getSettings: () => request<AppSettings>('/settings'),
+
+  getTemplates: () =>
+    request<{
+      main: EmailTemplateOption[]
+      followUp: EmailTemplateOption[]
+      defaults: TemplateCatalog['defaults']
+      catalog: TemplateCatalog
+    }>('/templates'),
+
+  updateSettings: (updates: Partial<AppSettings>) =>
+    request<AppSettings>('/settings', {
       method: 'PUT',
-      body: JSON.stringify({ yourName }),
+      body: JSON.stringify(updates),
     }),
 }

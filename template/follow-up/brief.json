@@ -1,0 +1,6 @@
+{
+  "label": "Quick nudge",
+  "description": "Two-sentence bump to the top",
+  "subject": "{{followUpSubject}}",
+  "body": "Hi {{firstName}},\n\nJust bumping my note about {{company}} in case it slipped through — still very interested in connecting if you have a moment.\n\nThanks,\n{{yourName}}"
+}

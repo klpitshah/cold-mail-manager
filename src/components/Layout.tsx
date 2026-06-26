@@ -6,6 +6,7 @@ interface LayoutProps {
   page: Page
   onNavigate: (page: Page) => void
   stats: { total: number; staged: number; sent: number }
+  scheduledCount: number
   gmailConnected: boolean
   gmailLoading: boolean
   gmailError: string | null
@@ -39,6 +40,7 @@ export function Layout({
   page,
   onNavigate,
   stats,
+  scheduledCount,
   gmailConnected,
   gmailLoading,
   gmailError,
@@ -92,6 +94,9 @@ export function Layout({
                 <span><strong className="text-slate-700">{stats.total}</strong> total</span>
                 <span><strong className="text-blue-600">{stats.staged}</strong> staged</span>
                 <span><strong className="text-slate-600">{stats.sent}</strong> sent</span>
+                {scheduledCount > 0 && (
+                  <span><strong className="text-violet-700">{scheduledCount}</strong> scheduled</span>
+                )}
               </div>
 
               {gmailConnected ? (

@@ -1,0 +1,6 @@
+{
+  "label": "Offer materials",
+  "description": "Follow up and offer resume or times",
+  "subject": "{{followUpSubject}}",
+  "body": "Hi {{firstName}},\n\nFollowing up on my message about {{company}}. Happy to share my resume or a few times that work for a quick call if that's easier on your end.\n\nNo worries at all if now isn't a good time — appreciate you considering it.\n\nBest,\n{{yourName}}"
+}

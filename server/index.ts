@@ -3,6 +3,20 @@ import cors from 'cors'
 import { randomUUID } from 'node:crypto'
 import { readContacts, writeContacts, readSettings, writeSettings } from './store.js'
 import type { Contact } from '../src/types.js'
+import { appendSendHistory, normalizeSendHistory } from '../src/utils/sendHistory.js'
+import {
+  isKnownFollowUpTemplateId,
+  isKnownMainTemplateId,
+  listTemplateOptions,
+  loadTemplateCatalog,
+  resolveMainTemplateId,
+} from './templates.js'
+import {
+  createScheduledSend,
+  deleteScheduledSend,
+  deleteScheduledSendsForContact,
+  readScheduledSends,
+} from './scheduled.js'
 
 const app = express()
 const PORT = 3001
@@ -24,9 +38,11 @@ app.post('/api/contacts', (req, res) => {
     role: (data.role ?? '').trim(),
     jobLink: (data.jobLink ?? '').trim(),
     mailDraft: (data.mailDraft ?? '').trim(),
+    initialTemplateId: resolveMainTemplateId(data.initialTemplateId),
     notes: (data.notes ?? '').trim(),
     status: 'staged',
     lastSentAt: null,
+    sendHistory: [],
     followUpCount: 0,
     createdAt: new Date().toISOString(),
     gmailThreadId: null,
@@ -50,8 +66,8 @@ app.post('/api/contacts/bulk', (req, res) => {
     res.status(409).json({ error: 'Contacts already exist' })
     return
   }
-  writeContacts(incoming)
-  res.json(incoming)
+  writeContacts(incoming.map((c) => ({ ...c, sendHistory: normalizeSendHistory(c) })))
+  res.json(readContacts<Contact>())
 })
 
 app.patch('/api/contacts/:id', (req, res) => {
@@ -78,10 +94,13 @@ app.post('/api/contacts/:id/record-send', (req, res) => {
     return
   }
   const c = contacts[idx]
+  const now = new Date().toISOString()
+  const history = normalizeSendHistory(c)
   contacts[idx] = {
     ...c,
     status: 'sent',
-    lastSentAt: new Date().toISOString(),
+    lastSentAt: now,
+    sendHistory: appendSendHistory(history, now, isFollowUp),
     followUpCount: isFollowUp ? c.followUpCount + 1 : c.followUpCount,
     gmailThreadId: result.threadId,
     gmailMessageId: result.messageId,
@@ -99,7 +118,68 @@ app.delete('/api/contacts/:id', (req, res) => {
     return
   }
   writeContacts(filtered)
+  deleteScheduledSendsForContact(req.params.id)
   res.status(204).end()
+})
+
+app.get('/api/scheduled-sends', (_req, res) => {
+  res.json(readScheduledSends())
+})
+
+app.post('/api/scheduled-sends', (req, res) => {
+  const { contactId, type, sendAt, draft } = req.body as {
+    contactId?: string
+    type?: string
+    sendAt?: string
+    draft?: string
+  }
+
+  if (!contactId || (type !== 'initial' && type !== 'follow-up')) {
+    res.status(400).json({ error: 'contactId and valid type required' })
+    return
+  }
+  if (!sendAt || Number.isNaN(Date.parse(sendAt))) {
+    res.status(400).json({ error: 'Valid sendAt required' })
+    return
+  }
+  if (new Date(sendAt).getTime() <= Date.now()) {
+    res.status(400).json({ error: 'Scheduled time must be in the future' })
+    return
+  }
+  if (!draft?.trim()) {
+    res.status(400).json({ error: 'draft required' })
+    return
+  }
+
+  const contacts = readContacts<Contact>()
+  if (!contacts.some((contact) => contact.id === contactId)) {
+    res.status(404).json({ error: 'Contact not found' })
+    return
+  }
+
+  const scheduled = createScheduledSend({
+    contactId,
+    type,
+    sendAt,
+    draft,
+  })
+  res.status(201).json(scheduled)
+})
+
+app.delete('/api/scheduled-sends/:id', (req, res) => {
+  if (!deleteScheduledSend(req.params.id)) {
+    res.status(404).json({ error: 'Not found' })
+    return
+  }
+  res.status(204).end()
+})
+
+app.get('/api/templates', (_req, res) => {
+  const catalog = loadTemplateCatalog()
+  res.json({
+    ...listTemplateOptions(),
+    catalog,
+  })
 })
 
 app.get('/api/settings', (_req, res) => {
@@ -107,9 +187,22 @@ app.get('/api/settings', (_req, res) => {
 })
 
 app.put('/api/settings', (req, res) => {
-  const settings = { yourName: req.body.yourName ?? '' }
-  writeSettings(settings)
-  res.json(settings)
+  const current = readSettings()
+  const next = {
+    yourName: typeof req.body.yourName === 'string' ? req.body.yourName : current.yourName,
+    defaultInitialTemplate:
+      typeof req.body.defaultInitialTemplate === 'string' &&
+      isKnownMainTemplateId(req.body.defaultInitialTemplate)
+        ? req.body.defaultInitialTemplate
+        : current.defaultInitialTemplate,
+    defaultFollowUpTemplate:
+      typeof req.body.defaultFollowUpTemplate === 'string' &&
+      isKnownFollowUpTemplateId(req.body.defaultFollowUpTemplate)
+        ? req.body.defaultFollowUpTemplate
+        : current.defaultFollowUpTemplate,
+  }
+  writeSettings(next)
+  res.json(next)
 })
 
 app.listen(PORT, () => {

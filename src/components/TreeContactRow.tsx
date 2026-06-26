@@ -1,9 +1,12 @@
-import type { Contact } from '../types'
+import type { Contact, ScheduledSend } from '../types'
 import { AgingBar } from './AgingBar'
-import { formatLastSent } from '../utils/formatDate'
+import { SendTimeline } from './SendTimeline'
+import { formatScheduledAt } from '../utils/scheduleDate'
 
 interface TreeContactRowProps {
   contact: Contact
+  scheduledInitial?: ScheduledSend
+  scheduledFollowUp?: ScheduledSend
   onSend: () => void
   onFollowUp: () => void
   onEdit: () => void
@@ -12,14 +15,16 @@ interface TreeContactRowProps {
 }
 
 const statusDot: Record<Contact['status'], string> = {
-  staged: 'bg-slate-300',
-  sent: 'bg-blue-400',
-  replied: 'bg-emerald-400',
-  no_response: 'bg-red-400',
+  staged: 'bg-slate-400',
+  sent: 'bg-blue-500',
+  replied: 'bg-emerald-500',
+  no_response: 'bg-red-500',
 }
 
 export function TreeContactRow({
   contact,
+  scheduledInitial,
+  scheduledFollowUp,
   onSend,
   onFollowUp,
   onEdit,
@@ -33,7 +38,7 @@ export function TreeContactRow({
     <div className="group flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-slate-50 transition">
       {/* Tree connector */}
       <div className="flex items-center shrink-0 w-6">
-        <span className="text-slate-300 font-light">├</span>
+        <span className="text-slate-400 font-light">├</span>
       </div>
 
       {/* Status dot */}
@@ -42,14 +47,14 @@ export function TreeContactRow({
       {/* Name & email */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-slate-800 truncate">{contact.name}</span>
+          <span className="text-sm font-medium text-slate-900 truncate">{contact.name}</span>
           {contact.role && (
-            <span className="text-xs text-slate-400 truncate hidden sm:inline">· {contact.role}</span>
+            <span className="text-xs text-slate-500 truncate hidden sm:inline">· {contact.role}</span>
           )}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           {contact.email && (
-            <span className="text-xs text-slate-400 truncate">{contact.email}</span>
+            <span className="text-xs text-slate-500 truncate">{contact.email}</span>
           )}
           {contact.jobLink && (
             <a
@@ -57,25 +62,28 @@ export function TreeContactRow({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="text-xs text-blue-500 hover:text-blue-600 shrink-0"
+              className="text-xs text-blue-600 hover:text-blue-700 shrink-0"
             >
               job ↗
             </a>
           )}
         </div>
+        {scheduledInitial && (
+          <p className="text-[11px] text-violet-700 mt-0.5">
+            First email · {formatScheduledAt(scheduledInitial.sendAt)}
+          </p>
+        )}
+        {scheduledFollowUp && (
+          <p className="text-[11px] text-violet-700 mt-0.5">
+            Follow-up · {formatScheduledAt(scheduledFollowUp.sendAt)}
+          </p>
+        )}
       </div>
 
-      {/* Last sent */}
-      <div className="hidden md:block text-xs text-slate-400 w-28 text-right shrink-0">
-        {formatLastSent(contact.lastSentAt)}
+      {/* Send timeline */}
+      <div className="hidden md:block w-44 shrink-0">
+        <SendTimeline contact={contact} />
       </div>
-
-      {/* Follow-up count */}
-      {contact.followUpCount > 0 && (
-        <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded shrink-0">
-          FU×{contact.followUpCount}
-        </span>
-      )}
 
       {/* Aging bar */}
       <div className="w-24 shrink-0 hidden sm:block">
@@ -103,7 +111,7 @@ export function TreeContactRow({
         )}
         <button
           onClick={onEdit}
-          className="p-1 text-slate-400 hover:text-slate-600 rounded transition"
+          className="p-1 text-slate-500 hover:text-slate-700 rounded transition"
           title="Edit"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -112,7 +120,7 @@ export function TreeContactRow({
         </button>
         <button
           onClick={onDelete}
-          className="p-1 text-slate-400 hover:text-red-500 rounded transition"
+          className="p-1 text-slate-500 hover:text-red-500 rounded transition"
           title="Delete"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

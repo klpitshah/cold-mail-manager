@@ -1,0 +1,6 @@
+{
+  "label": "Warm intro",
+  "description": "Compliment their work, then ask to connect",
+  "subject": "Inspired by {{company}} — would love to connect",
+  "body": "Hi {{firstName}},\n\n{{compliment}}{{ask}}\n\nIf you're open to it, I'd really appreciate a brief conversation or any guidance on the best way to apply.\n\nBest,\n{{yourName}}"
+}

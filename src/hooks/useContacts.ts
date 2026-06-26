@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, type StagingInput } from '../api/client'
 import type { Contact, ContactStatus } from '../types'
-import { buildInitialEmail } from '../utils/emailTemplates'
+import { normalizeSendHistory } from '../utils/sendHistory'
 
 const LEGACY_STORAGE_KEY = 'mailtracker-contacts'
 
@@ -10,20 +10,19 @@ interface LegacyContact extends Partial<Contact> {
 }
 
 function migrateContact(raw: LegacyContact): Contact {
-  return {
+  const initialTemplateId = raw.initialTemplateId ?? ''
+  const contact: Contact = {
     id: raw.id ?? crypto.randomUUID(),
     name: raw.name ?? '',
     company: raw.company ?? '',
     email: raw.email ?? '',
     role: raw.role ?? '',
     jobLink: raw.jobLink ?? '',
-    mailDraft:
-      raw.mailDraft ??
-      (raw.name && raw.company
-        ? buildInitialEmail(raw.name, raw.company, raw.jobLink ?? '')
-        : ''),
+    mailDraft: raw.mailDraft ?? '',
+    initialTemplateId,
     status: migrateStatus(raw),
     lastSentAt: raw.lastSentAt ?? raw.lastContactDate ?? null,
+    sendHistory: raw.sendHistory ?? [],
     followUpCount: raw.followUpCount ?? 0,
     notes: raw.notes ?? '',
     createdAt: raw.createdAt ?? new Date().toISOString(),
@@ -31,6 +30,7 @@ function migrateContact(raw: LegacyContact): Contact {
     gmailMessageId: raw.gmailMessageId ?? null,
     lastSubject: raw.lastSubject ?? null,
   }
+  return { ...contact, sendHistory: normalizeSendHistory(contact) }
 }
 
 function migrateStatus(raw: LegacyContact): ContactStatus {

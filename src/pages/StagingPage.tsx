@@ -1,12 +1,27 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import type { Contact } from '../types'
-import { buildInitialEmail } from '../utils/emailTemplates'
-import { sendEmail } from '../services/gmail'
+import type { AppSettings, Contact, ScheduledSend, ScheduledSendType } from '../types'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { SendConfirmDialog } from '../components/SendConfirmDialog'
+import { TemplateSelect } from '../components/TemplateSelect'
+import type { EmailTemplateOption } from '../utils/templateRender'
+import { executeContactSend } from '../utils/executeSend'
+import { formatScheduledAt } from '../utils/scheduleDate'
+
+type PendingAction =
+  | { type: 'send'; contact: Contact; draft: string; sendType: 'initial' }
+  | { type: 'delete'; contact: Contact }
 
 interface StagingPageProps {
   contacts: Contact[]
   yourName: string
+  mainTemplateOptions: EmailTemplateOption[]
+  defaultInitialTemplateId: string
+  renderMain: (
+    templateId: string,
+    ctx: { name: string; company: string; jobLink: string; yourName: string; role: string },
+  ) => string
   onYourNameChange: (name: string) => void | Promise<void>
+  onSettingsChange: (updates: Partial<AppSettings>) => void | Promise<void>
   onAdd: (data: {
     name: string
     company: string
@@ -14,6 +29,7 @@ interface StagingPageProps {
     role: string
     jobLink: string
     mailDraft: string
+    initialTemplateId: string
     notes: string
   }) => Promise<Contact>
   onUpdate: (id: string, updates: Partial<Contact>) => Promise<void>
@@ -25,19 +41,33 @@ interface StagingPageProps {
   onDelete: (id: string) => Promise<void>
   token: string | null
   onGmailRequired: () => void
+  scheduleSend: (input: {
+    contactId: string
+    type: ScheduledSendType
+    sendAt: string
+    draft: string
+  }) => Promise<unknown>
+  getScheduledForContact: (contactId: string, type?: ScheduledSendType) => ScheduledSend | undefined
 }
 
 export function StagingPage({
   contacts,
   yourName,
+  mainTemplateOptions,
+  defaultInitialTemplateId,
+  renderMain,
   onYourNameChange,
+  onSettingsChange,
   onAdd,
   onUpdate,
   onRecordSend,
   onDelete,
   token,
   onGmailRequired,
+  scheduleSend,
+  getScheduledForContact,
 }: StagingPageProps) {
+  const [schedulingId, setSchedulingId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [company, setCompany] = useState('')
   const [email, setEmail] = useState('')
@@ -45,8 +75,11 @@ export function StagingPage({
   const [jobLink, setJobLink] = useState('')
   const [mailDraft, setMailDraft] = useState('')
   const [notes, setNotes] = useState('')
+  const [initialTemplateId, setInitialTemplateId] = useState(defaultInitialTemplateId)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [sendingId, setSendingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const staged = contacts.filter((c) => c.status === 'staged')
@@ -59,9 +92,14 @@ export function StagingPage({
     setRole(contact.role)
     setJobLink(contact.jobLink)
     setMailDraft(contact.mailDraft)
+    setInitialTemplateId(contact.initialTemplateId || defaultInitialTemplateId)
     setNotes(contact.notes)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+
+  useEffect(() => {
+    setInitialTemplateId((current) => (editingId ? current : defaultInitialTemplateId))
+  }, [defaultInitialTemplateId, editingId])
 
   useEffect(() => {
     const editId = sessionStorage.getItem('mailtracker-edit-id')
@@ -72,11 +110,23 @@ export function StagingPage({
     }
   }, [contacts])
 
-  useEffect(() => {
-    if (name && company && !editingId) {
-      setMailDraft(buildInitialEmail(name, company, jobLink, yourName))
+  function regenerateDraft(templateId: string = initialTemplateId) {
+    if (name && company) {
+      setMailDraft(renderMain(templateId, { name, company, jobLink, yourName, role }))
     }
-  }, [name, company, jobLink, yourName, editingId])
+  }
+
+  useEffect(() => {
+    if (!editingId) {
+      regenerateDraft()
+    }
+  }, [name, company, jobLink, yourName, role, editingId])
+
+  function handleInitialTemplateChange(templateId: string) {
+    setInitialTemplateId(templateId)
+    onSettingsChange({ defaultInitialTemplate: templateId })
+    regenerateDraft(templateId)
+  }
 
   function resetForm() {
     setName('')
@@ -86,6 +136,7 @@ export function StagingPage({
     setJobLink('')
     setMailDraft('')
     setNotes('')
+    setInitialTemplateId(defaultInitialTemplateId)
     setEditingId(null)
   }
 
@@ -94,16 +145,25 @@ export function StagingPage({
     if (!name.trim() || !company.trim()) return
 
     if (editingId) {
-      await onUpdate(editingId, { name, company, email, role, jobLink, mailDraft, notes })
+      await onUpdate(editingId, {
+        name,
+        company,
+        email,
+        role,
+        jobLink,
+        mailDraft,
+        initialTemplateId,
+        notes,
+      })
       resetForm()
       return
     }
 
-    await onAdd({ name, company, email, role, jobLink, mailDraft, notes })
+    await onAdd({ name, company, email, role, jobLink, mailDraft, initialTemplateId, notes })
     resetForm()
   }
 
-  async function handleSendNow(id: string) {
+  async function doSend(id: string) {
     if (!token) {
       onGmailRequired()
       return
@@ -116,12 +176,65 @@ export function StagingPage({
     setSendingId(id)
     setError(null)
     try {
-      const result = await sendEmail(token, contact.email, contact.mailDraft)
-      onRecordSend(id, result, false)
+      const result = await executeContactSend(token, contact, contact.mailDraft, 'initial')
+      await onRecordSend(id, result, false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to send')
     } finally {
       setSendingId(null)
+    }
+  }
+
+  function requestSend(contact: Contact) {
+    if (!contact.email) {
+      setError('Add an email before sending')
+      return
+    }
+    setPendingAction({ type: 'send', contact, draft: contact.mailDraft, sendType: 'initial' })
+  }
+
+  function requestDelete(contact: Contact) {
+    setPendingAction({ type: 'delete', contact })
+  }
+
+  async function confirmSendNow() {
+    if (!pendingAction || pendingAction.type !== 'send') return
+    if (!token) {
+      onGmailRequired()
+      return
+    }
+    await doSend(pendingAction.contact.id)
+    setPendingAction(null)
+  }
+
+  async function confirmSchedule(sendAt: string) {
+    if (!pendingAction || pendingAction.type !== 'send') return
+    setSchedulingId(pendingAction.contact.id)
+    setError(null)
+    try {
+      await scheduleSend({
+        contactId: pendingAction.contact.id,
+        type: pendingAction.sendType,
+        sendAt,
+        draft: pendingAction.draft,
+      })
+      setPendingAction(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to schedule send')
+    } finally {
+      setSchedulingId(null)
+    }
+  }
+
+  async function confirmPendingAction() {
+    if (!pendingAction) return
+    if (pendingAction.type === 'send') return
+    setDeletingId(pendingAction.contact.id)
+    try {
+      await onDelete(pendingAction.contact.id)
+      setPendingAction(null)
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -168,6 +281,13 @@ export function StagingPage({
               />
             </div>
 
+            <TemplateSelect
+              label="Email template"
+              value={initialTemplateId}
+              options={mainTemplateOptions}
+              onChange={handleInitialTemplateChange}
+            />
+
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">Email draft</label>
               <textarea
@@ -211,7 +331,9 @@ export function StagingPage({
               <p className="text-xs text-slate-300 mt-1">Fill the form to capture your next outreach</p>
             </div>
           ) : (
-            staged.map((contact) => (
+            staged.map((contact) => {
+              const scheduled = getScheduledForContact(contact.id, 'initial')
+              return (
               <div
                 key={contact.id}
                 className="p-4 rounded-lg border border-slate-100 hover:border-slate-200 transition"
@@ -222,6 +344,11 @@ export function StagingPage({
                     <p className="text-xs text-slate-500">{contact.company}</p>
                     {contact.email && (
                       <p className="text-xs text-slate-400 mt-0.5">{contact.email}</p>
+                    )}
+                    {scheduled && (
+                      <p className="text-xs text-violet-700 mt-1">
+                        Scheduled · {formatScheduledAt(scheduled.sendAt)}
+                      </p>
                     )}
                     {contact.jobLink && (
                       <a
@@ -241,11 +368,17 @@ export function StagingPage({
 
                 <div className="mt-3 flex gap-2">
                   <button
-                    onClick={() => handleSendNow(contact.id)}
-                    disabled={!contact.email || sendingId === contact.id}
+                    onClick={() => requestSend(contact)}
+                    disabled={!contact.email || sendingId === contact.id || schedulingId === contact.id}
                     className="flex-1 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 transition"
                   >
-                    {sendingId === contact.id ? 'Sending…' : 'Send via Gmail'}
+                    {sendingId === contact.id
+                      ? 'Sending…'
+                      : schedulingId === contact.id
+                        ? 'Scheduling…'
+                        : scheduled
+                          ? 'Send / reschedule'
+                          : 'Send via Gmail'}
                   </button>
                   <button
                     onClick={() => loadForEdit(contact)}
@@ -254,17 +387,43 @@ export function StagingPage({
                     Edit
                   </button>
                   <button
-                    onClick={() => onDelete(contact.id)}
+                    onClick={() => requestDelete(contact)}
                     className="px-2 py-1.5 text-xs text-slate-400 hover:text-red-500 transition"
                   >
                     ✕
                   </button>
                 </div>
               </div>
-            ))
+            )})
           )}
         </div>
       </div>
+
+      {pendingAction?.type === 'send' && (
+        <SendConfirmDialog
+          title="Send email?"
+          message={`Send outreach email to ${pendingAction.contact.name} at ${pendingAction.contact.email}?`}
+          sendLabel="Send email"
+          scheduleLabel="Schedule email"
+          variant="primary"
+          loading={sendingId === pendingAction.contact.id || schedulingId === pendingAction.contact.id}
+          onSendNow={confirmSendNow}
+          onSchedule={confirmSchedule}
+          onCancel={() => setPendingAction(null)}
+        />
+      )}
+
+      {pendingAction?.type === 'delete' && (
+        <ConfirmDialog
+          title="Delete contact?"
+          message={`Remove ${pendingAction.contact.name} at ${pendingAction.contact.company} from staging? This cannot be undone.`}
+          confirmLabel="Delete"
+          variant="danger"
+          loading={deletingId === pendingAction.contact.id}
+          onConfirm={confirmPendingAction}
+          onCancel={() => setPendingAction(null)}
+        />
+      )}
     </div>
   )
 }

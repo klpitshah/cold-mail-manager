@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react'
-import type { Contact } from '../types'
+import type { Contact, ScheduledSend, ScheduledSendType } from '../types'
+import type { EmailTemplateOption } from '../utils/templateRender'
 import { CompanyTreeNode } from '../components/CompanyTreeNode'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { SendConfirmDialog } from '../components/SendConfirmDialog'
 import { FollowUpModal } from '../components/FollowUpModal'
 import type { CompanyGroup } from '../types'
-import { sendEmail } from '../services/gmail'
+import { executeContactSend } from '../utils/executeSend'
+
+type PendingAction =
+  | { type: 'send'; contact: Contact; draft: string; sendType: 'initial' }
+  | { type: 'delete'; contact: Contact }
 
 interface OutreachTreePageProps {
   contacts: Contact[]
@@ -17,6 +24,20 @@ interface OutreachTreePageProps {
   onEdit: (id: string) => void
   onDelete: (id: string) => Promise<void>
   yourName: string
+  followUpOptions: EmailTemplateOption[]
+  defaultFollowUpTemplateId: string
+  renderFollowUp: (
+    templateId: string,
+    ctx: { name: string; company: string; yourName: string; followUpCount: number },
+  ) => string
+  onFollowUpTemplateChange: (templateId: string) => void
+  scheduleSend: (input: {
+    contactId: string
+    type: ScheduledSendType
+    sendAt: string
+    draft: string
+  }) => Promise<unknown>
+  getScheduledForContact: (contactId: string, type?: ScheduledSendType) => ScheduledSend | undefined
 }
 
 export function OutreachTreePage({
@@ -27,10 +48,19 @@ export function OutreachTreePage({
   onEdit,
   onDelete,
   yourName,
+  followUpOptions,
+  defaultFollowUpTemplateId,
+  renderFollowUp,
+  onFollowUpTemplateChange,
+  scheduleSend,
+  getScheduledForContact,
 }: OutreachTreePageProps) {
+  const [schedulingId, setSchedulingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [sendingId, setSendingId] = useState<string | null>(null)
   const [followUpContact, setFollowUpContact] = useState<Contact | null>(null)
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const companyGroups = useMemo(() => {
@@ -66,7 +96,7 @@ export function OutreachTreePage({
       .sort((a, b) => a.company.localeCompare(b.company))
   }, [contacts, search])
 
-  async function handleSend(id: string) {
+  async function doSend(id: string) {
     if (!token) {
       onGmailRequired()
       return
@@ -79,12 +109,68 @@ export function OutreachTreePage({
     setSendingId(id)
     setError(null)
     try {
-      const result = await sendEmail(token, contact.email, contact.mailDraft)
-      onRecordSend(id, result, false)
+      const result = await executeContactSend(token, contact, contact.mailDraft, 'initial')
+      await onRecordSend(id, result, false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to send email')
     } finally {
       setSendingId(null)
+    }
+  }
+
+  function requestSend(id: string) {
+    const contact = contacts.find((c) => c.id === id)
+    if (!contact?.email) {
+      setError('Add an email address before sending')
+      return
+    }
+    setPendingAction({ type: 'send', contact, draft: contact.mailDraft, sendType: 'initial' })
+  }
+
+  function requestDelete(id: string) {
+    const contact = contacts.find((c) => c.id === id)
+    if (!contact) return
+    setPendingAction({ type: 'delete', contact })
+  }
+
+  async function confirmSendNow() {
+    if (!pendingAction || pendingAction.type !== 'send') return
+    if (!token) {
+      onGmailRequired()
+      return
+    }
+    await doSend(pendingAction.contact.id)
+    setPendingAction(null)
+  }
+
+  async function confirmSchedule(sendAt: string) {
+    if (!pendingAction || pendingAction.type !== 'send') return
+    setSchedulingId(pendingAction.contact.id)
+    setError(null)
+    try {
+      await scheduleSend({
+        contactId: pendingAction.contact.id,
+        type: pendingAction.sendType,
+        sendAt,
+        draft: pendingAction.draft,
+      })
+      setPendingAction(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to schedule send')
+    } finally {
+      setSchedulingId(null)
+    }
+  }
+
+  async function confirmPendingAction() {
+    if (!pendingAction) return
+    if (pendingAction.type === 'send') return
+    setDeletingId(pendingAction.contact.id)
+    try {
+      await onDelete(pendingAction.contact.id)
+      setPendingAction(null)
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -104,10 +190,10 @@ export function OutreachTreePage({
           placeholder="Search companies or contacts..."
           className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition shadow-sm"
         />
-        <div className="flex gap-3 text-xs text-slate-500">
-          <span><strong className="text-slate-700">{stats.companies}</strong> companies</span>
-          <span><strong className="text-blue-600">{stats.staged}</strong> staged</span>
-          <span><strong className="text-slate-600">{stats.sent}</strong> sent</span>
+        <div className="flex gap-3 text-xs text-slate-600">
+          <span><strong className="text-slate-800">{stats.companies}</strong> companies</span>
+          <span><strong className="text-blue-700">{stats.staged}</strong> staged</span>
+          <span><strong className="text-slate-700">{stats.sent}</strong> sent</span>
         </div>
       </div>
 
@@ -119,8 +205,8 @@ export function OutreachTreePage({
 
       {companyGroups.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm py-20 text-center">
-          <p className="text-sm text-slate-500">No outreach yet</p>
-          <p className="text-xs text-slate-400 mt-1">Stage contacts from the Staging tab while browsing LinkedIn</p>
+          <p className="text-sm text-slate-600">No outreach yet</p>
+          <p className="text-xs text-slate-500 mt-1">Stage contacts from the Staging tab while browsing LinkedIn</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -129,22 +215,55 @@ export function OutreachTreePage({
               key={group.company}
               group={group}
               sendingId={sendingId}
-              onSend={handleSend}
+              onSend={requestSend}
               onFollowUp={(id) => {
                 const c = contacts.find((x) => x.id === id)
                 if (c) setFollowUpContact(c)
               }}
               onEdit={onEdit}
-              onDelete={onDelete}
+              onDelete={requestDelete}
+              getScheduledForContact={getScheduledForContact}
             />
           ))}
         </div>
+      )}
+
+      {pendingAction?.type === 'send' && (
+        <SendConfirmDialog
+          title="Send email?"
+          message={`Send outreach email to ${pendingAction.contact.name} at ${pendingAction.contact.email}?`}
+          sendLabel="Send email"
+          scheduleLabel="Schedule email"
+          variant="primary"
+          loading={sendingId === pendingAction.contact.id || schedulingId === pendingAction.contact.id}
+          onSendNow={confirmSendNow}
+          onSchedule={confirmSchedule}
+          onCancel={() => setPendingAction(null)}
+        />
+      )}
+
+      {pendingAction?.type === 'delete' && (
+        <ConfirmDialog
+          title="Delete contact?"
+          message={`Remove ${pendingAction.contact.name} at ${pendingAction.contact.company}? This cannot be undone.`}
+          confirmLabel="Delete"
+          variant="danger"
+          loading={deletingId === pendingAction.contact.id}
+          onConfirm={confirmPendingAction}
+          onCancel={() => setPendingAction(null)}
+        />
       )}
 
       {followUpContact && token && (
         <FollowUpModal
           contact={followUpContact}
           yourName={yourName}
+          followUpOptions={followUpOptions}
+          defaultFollowUpTemplateId={defaultFollowUpTemplateId}
+          renderFollowUp={renderFollowUp}
+          onFollowUpTemplateChange={onFollowUpTemplateChange}
+          scheduleSend={scheduleSend}
+          getScheduledForContact={getScheduledForContact}
           token={token}
           onClose={() => setFollowUpContact(null)}
           onSent={(result) => onRecordSend(followUpContact.id, result, true)}
