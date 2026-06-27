@@ -17,7 +17,9 @@ import {
   deleteScheduledSend,
   deleteScheduledSendsForContact,
   readScheduledSends,
+  updateScheduledSend,
 } from './scheduled.js'
+import { parseEmailDraft } from '../src/utils/emailParse.js'
 
 const app = express()
 const PORT = 3001
@@ -153,12 +155,60 @@ app.post('/api/scheduled-sends', (req, res) => {
   res.status(201).json(scheduled)
 })
 
+app.patch('/api/scheduled-sends/:id', (req, res) => {
+  const { draft, sendAt } = req.body as { draft?: string; sendAt?: string }
+  const updates: { draft?: string; sendAt?: string } = {}
+
+  if (typeof draft === 'string') {
+    updates.draft = draft.trim()
+  }
+  if (typeof sendAt === 'string' && !Number.isNaN(Date.parse(sendAt))) {
+    updates.sendAt = sendAt
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: 'No valid updates provided' })
+    return
+  }
+
+  const updated = updateScheduledSend(req.params.id, updates)
+  if (!updated) {
+    res.status(404).json({ error: 'Not found' })
+    return
+  }
+  res.json(updated)
+})
+
 app.delete('/api/scheduled-sends/:id', (req, res) => {
   if (!deleteScheduledSend(req.params.id)) {
     res.status(404).json({ error: 'Not found' })
     return
   }
   res.status(204).end()
+})
+
+app.get('/api/scheduled-sends/export', (_req, res) => {
+  const scheduled = readScheduledSends().filter((s) => s.status === 'pending')
+  const contacts = readContacts<Contact>()
+
+  const rows = scheduled.map((item) => {
+    const contact = contacts.find((c) => c.id === item.contactId)
+    const { subject, body } = parseEmailDraft(item.draft)
+    return {
+      id: item.id,
+      email: contact?.email ?? '',
+      name: contact?.name ?? '',
+      company: contact?.company ?? '',
+      subject,
+      body,
+      sendAt: item.sendAt,
+      type: item.type,
+      threadId: contact?.gmailThreadId ?? '',
+      status: 'pending',
+    }
+  })
+
+  res.json(rows)
 })
 
 app.get('/api/templates', (_req, res) => {
@@ -187,6 +237,10 @@ app.put('/api/settings', (req, res) => {
       isKnownFollowUpTemplateId(req.body.defaultFollowUpTemplate)
         ? req.body.defaultFollowUpTemplate
         : current.defaultFollowUpTemplate,
+    scheduledSheetsId:
+      typeof req.body.scheduledSheetsId === 'string'
+        ? req.body.scheduledSheetsId
+        : current.scheduledSheetsId,
   }
   writeSettings(next)
   res.json(next)

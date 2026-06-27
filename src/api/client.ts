@@ -68,6 +68,28 @@ export const api = {
   deleteScheduledSend: (id: string) =>
     request<void>(`/scheduled-sends/${id}`, { method: 'DELETE' }),
 
+  updateScheduledSend: (id: string, updates: { draft?: string; sendAt?: string }) =>
+    request<ScheduledSend>(`/scheduled-sends/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    }),
+
+  exportScheduledSends: () =>
+    request<
+      {
+        id: string
+        email: string
+        name: string
+        company: string
+        subject: string
+        body: string
+        sendAt: string
+        type: string
+        threadId: string
+        status: string
+      }[]
+    >('/scheduled-sends/export'),
+
   getSettings: () => request<AppSettings>('/settings'),
 
   getTemplates: () =>

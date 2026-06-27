@@ -8,6 +8,7 @@ const defaultSettings: AppSettings = {
   yourName: '',
   defaultInitialTemplate: '',
   defaultFollowUpTemplate: '',
+  scheduledSheetsId: '',
 }
 
 export function useSettings(defaultTemplateIds?: {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 const TOKEN_KEY = 'mailtracker-gmail-token'
 const TOKEN_EXPIRY_KEY = 'mailtracker-gmail-expiry'
-const SCOPES = 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly'
+const SCOPES = 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/spreadsheets'
 
 declare global {
   interface Window {

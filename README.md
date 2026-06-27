@@ -39,6 +39,7 @@ A local-first app for staging cold outreach emails, sending them through Gmail, 
    In Google Cloud Console:
 
    - Enable the **Gmail API** for your project
+   - Enable the **Google Sheets API** (for scheduled sends sync)
    - Create an OAuth 2.0 **Web application** client
    - Copy the client ID into `VITE_GOOGLE_CLIENT_ID`
    - Add `http://localhost:5173` to **Authorized JavaScript origins**
@@ -83,7 +84,32 @@ The server creates these files automatically on first run. Back up `data/` if yo
 └── data/          # Local data (not committed)
 ```
 
+## Scheduled Sends
+
+Scheduled emails are sent by Google Apps Script running on Google's servers - your computer doesn't need to be on.
+
+### One-time Setup (~5 min)
+
+1. **Create a Google Sheet** at [sheets.google.com](https://sheets.google.com)
+
+2. **Add the Apps Script:**
+   - In your sheet, go to **Extensions → Apps Script**
+   - Paste the code from [`scripts/google-apps-script/Code.gs`](scripts/google-apps-script/Code.gs)
+   - Run `setupSheet` and `createTrigger`
+   - See [`scripts/google-apps-script/README.md`](scripts/google-apps-script/README.md) for details
+
+3. **Link the sheet in the app:**
+   - Click **"Setup Google Sheet"** in the scheduled sends banner
+   - Paste your Google Sheet URL
+
+### Usage
+
+Once set up, just click **"Sync to Sheet"** in the scheduled sends banner. Your scheduled emails will be sent by Google's servers even when your computer is off.
+
+This uses Gmail's native sending from your account — no third-party services.
+
 ## Notes
 
-- Gmail access tokens are stored in browser `localStorage`. Scheduled sends run in the browser — keep the app open with Gmail connected when a send is due.
+- Gmail access tokens are stored in browser `localStorage` for sending test emails and syncing to Google Sheets.
+- Scheduled emails are sent by Google Apps Script, not by this app. You can close your computer after syncing.
 - If you previously used an older localStorage-only version, contacts migrate automatically on first load when `data/contacts.json` is empty.

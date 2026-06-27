@@ -4,6 +4,7 @@ export interface AppSettings {
   yourName: string
   defaultInitialTemplate: string
   defaultFollowUpTemplate: string
+  scheduledSheetsId: string
 }
 
 export interface Contact {

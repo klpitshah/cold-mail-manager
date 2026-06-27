@@ -56,6 +56,17 @@ export function useScheduledSends() {
     setScheduledSends((prev) => prev.filter((item) => item.id !== id))
   }, [])
 
+  const updateScheduledSend = useCallback(
+    async (id: string, updates: { draft?: string; sendAt?: string }) => {
+      const updated = await api.updateScheduledSend(id, updates)
+      setScheduledSends((prev) =>
+        prev.map((item) => (item.id === id ? updated : item)),
+      )
+      return updated
+    },
+    [],
+  )
+
   const getScheduledForContact = useCallback(
     (contactId: string, type?: ScheduledSendType) =>
       pendingScheduled.find(
@@ -120,6 +131,7 @@ export function useScheduledSends() {
     refresh,
     scheduleSend,
     cancelScheduledSend,
+    updateScheduledSend,
     getScheduledForContact,
     processDueSends,
   }

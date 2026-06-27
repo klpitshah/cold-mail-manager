@@ -19,6 +19,7 @@ export interface StoredSettings {
   yourName: string
   defaultInitialTemplate?: string
   defaultFollowUpTemplate?: string
+  scheduledSheetsId?: string
 }
 
 function normalizeSettings(raw: StoredSettings) {
@@ -26,6 +27,7 @@ function normalizeSettings(raw: StoredSettings) {
     yourName: raw.yourName ?? '',
     defaultInitialTemplate: resolveMainTemplateId(raw.defaultInitialTemplate),
     defaultFollowUpTemplate: resolveFollowUpTemplateId(raw.defaultFollowUpTemplate),
+    scheduledSheetsId: raw.scheduledSheetsId ?? '',
   }
 }
 

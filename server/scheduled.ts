@@ -74,7 +74,7 @@ export function deleteScheduledSend(id: string): boolean {
 
 export function updateScheduledSend(
   id: string,
-  updates: Partial<Pick<ScheduledSend, 'status' | 'error'>>,
+  updates: Partial<Pick<ScheduledSend, 'status' | 'error' | 'draft' | 'sendAt'>>,
 ): ScheduledSend | null {
   const sends = readScheduledSends()
   const idx = sends.findIndex((item) => item.id === id)

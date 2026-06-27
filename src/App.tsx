@@ -7,6 +7,7 @@ import { useScheduledSends } from './hooks/useScheduledSends'
 import { useSettings } from './hooks/useSettings'
 import { useTemplates } from './hooks/useTemplates'
 import { OutreachTreePage } from './pages/OutreachTreePage'
+import { ScheduledPage } from './pages/ScheduledPage'
 import { StagingPage } from './pages/StagingPage'
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
     yourName,
     defaultInitialTemplate,
     defaultFollowUpTemplate,
+    scheduledSheetsId,
     loading: settingsLoading,
     updateYourName,
     updateSettings,
@@ -42,8 +44,8 @@ export default function App() {
     pendingScheduled,
     scheduleSend,
     cancelScheduledSend,
+    updateScheduledSend,
     getScheduledForContact,
-    processDueSends,
   } = useScheduledSends()
   const gmail = useGmail()
   const [page, setPage] = useState<Page>('outreach')
@@ -65,18 +67,6 @@ export default function App() {
     }),
     [contacts],
   )
-
-  useEffect(() => {
-    if (!gmail.token) return
-
-    const run = () => {
-      processDueSends(gmail.token!, contacts, recordSend).catch(() => {})
-    }
-
-    run()
-    const interval = window.setInterval(run, 15_000)
-    return () => window.clearInterval(interval)
-  }, [gmail.token, contacts, processDueSends, recordSend])
 
   function handleEdit(id: string) {
     setPage('staging')
@@ -130,13 +120,18 @@ export default function App() {
       onGmailConnect={gmail.signIn}
       onGmailDisconnect={gmail.signOut}
     >
-      <ScheduledSendsBanner
-        scheduledSends={scheduledSends}
-        contacts={contacts}
-        onCancel={cancelScheduledSend}
-      />
+      {page !== 'scheduled' && (
+        <ScheduledSendsBanner
+          scheduledSends={scheduledSends}
+          contacts={contacts}
+          onCancel={cancelScheduledSend}
+          token={gmail.token}
+          scheduledSheetsId={scheduledSheetsId}
+          onSheetsIdChange={(id) => updateSettings({ scheduledSheetsId: id })}
+        />
+      )}
 
-      {page === 'outreach' ? (
+      {page === 'outreach' && (
         <OutreachTreePage
           contacts={contacts}
           token={gmail.token}
@@ -160,7 +155,9 @@ export default function App() {
           scheduleSend={scheduleSend}
           getScheduledForContact={getScheduledForContact}
         />
-      ) : (
+      )}
+
+      {page === 'staging' && (
         <StagingPage
           contacts={contacts}
           yourName={yourName}
@@ -177,6 +174,18 @@ export default function App() {
           onGmailRequired={gmail.signIn}
           scheduleSend={scheduleSend}
           getScheduledForContact={getScheduledForContact}
+        />
+      )}
+
+      {page === 'scheduled' && (
+        <ScheduledPage
+          scheduledSends={scheduledSends}
+          contacts={contacts}
+          onCancel={cancelScheduledSend}
+          onUpdate={updateScheduledSend}
+          token={gmail.token}
+          scheduledSheetsId={scheduledSheetsId}
+          onSheetsIdChange={(id) => updateSettings({ scheduledSheetsId: id })}
         />
       )}
     </Layout>
